@@ -11,6 +11,10 @@ import java.util.List;
 @Getter
 @Setter
 public class PosDataDTO {
+
+    @JsonProperty("android_id")
+    private String android_id;
+
     @JsonProperty("position")
     private String position;
 

@@ -13,6 +13,7 @@ public class ResultDataDTO implements Comparable<ResultDataDTO> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+    private String android_id;
     private String position;
     private int count;
     private double avg;
@@ -36,7 +37,7 @@ public class ResultDataDTO implements Comparable<ResultDataDTO> {
 
     @Override
     public String toString() {
-        return "ResultDataDTO{" +
+        return "ResultDataDTO{" +"android_id" + android_id +
                 "id=" + id +
                 ", position='" + position + '\'' +
                 ", count=" + count +

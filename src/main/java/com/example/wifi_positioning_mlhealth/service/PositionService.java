@@ -42,16 +42,17 @@ public class PositionService {
     private final WifiDataUtil wifiDataUtil;
     private JSONArray bestResultsArray = new JSONArray(); // bestResult를 저장할 JSON 배열
 
-    public void addBestResultToJsonArray(ResultDataDTO bestResult,int count) {
+    public void addBestResultToJsonArray(ResultDataDTO bestResult,int count,String android_id) {
         ObjectMapper mapper = new ObjectMapper();
         try {
             String jsonString = mapper.writeValueAsString(bestResult);
             JSONObject jsonObject = new JSONObject(jsonString);
+            jsonObject.put("android_id", android_id);
             bestResultsArray.put(jsonObject);
 
             System.out.println("bestResultsArray.length() = " + bestResultsArray.length());
             //워치 개수와 bestResult 수가 같아질 경우, JsonArray로 된 DTO를 만들어서 웹클라이언트로 전달 예정.
-            if( bestResultsArray.length() == 2 ) {
+            if( bestResultsArray.length() == count ) {
                 for (int i = 0; i < bestResultsArray.length(); i++) {
                     System.out.println(bestResultsArray.get(i));
                 }
@@ -107,6 +108,7 @@ public class PositionService {
 
     public ResultDataDTO findPosition(PosDataDTO data){
         String storedHash = getStoredPasswordHash();
+        String android_id = data.getAndroid_id();
         if (passwordEncoder.matches(data.getPassword(), storedHash)) {
 
         List<WifiData> dbDataList = wifiDataRepository.findAll();
@@ -133,7 +135,7 @@ public class PositionService {
                 }
             }).collect(Collectors.toList());
 
-        return calcKnn(results, 4);
+        return calcKnn(results, 4,android_id);
         } else {
             throw new InvalidPasswordException("Invalid password");
         }
@@ -143,6 +145,7 @@ public class PositionService {
     // 클라이언트의 와이파이 데이터와 데이터베이스의 와이파이 데이터를 비교하여, 가장 가능성이 높은 위치 정보를 담은 리스트를 반환
     private List<ResultDataDTO> calPos(List<WifiData> dbDataList, PosDataDTO inputData, double margin) {
         List<ResultDataDTO> resultList = new ArrayList<>();
+
         int largestCount = 0;
 
         for (WifiData dbData : dbDataList) {
@@ -176,7 +179,7 @@ public class PositionService {
         }
 
     // calpos 결과값을 기반으로 k개의 이웃값과 비교하여 최적값 반환.
-    public ResultDataDTO calcKnn(List<ResultDataDTO> results, int k) {
+    public ResultDataDTO calcKnn(List<ResultDataDTO> results, int k,String android_id) {
         List<ResultDataDTO> limitedResults = results.stream()
                 .limit(k)
                 .collect(Collectors.toList());
@@ -197,7 +200,8 @@ public class PositionService {
         if (bestPosition != null) {
             List<ResultDataDTO> bestResults = groupedResults.get(bestPosition);
             ResultDataDTO bestResult = bestResults.get(0);
-            addBestResultToJsonArray(bestResult,2); // bestResult를 JSON 배열에 추가
+
+            addBestResultToJsonArray(bestResult,2,android_id); // bestResult를 JSON 배열에 추가
 
             return bestResult;
         }
