@@ -66,6 +66,7 @@ public class PositionService {
 
     // 받은 PosData에서 json으로 묶여 있는 다수의 wifiData를 분할하여 wifiDataEntity(DB)에 저장.
     public List<WifiData> addPosData(PosDataDTO posData) throws InvalidPasswordException {
+        System.out.println("posData.getWifiData() = " + posData.getWifiData());
         String storedHash = getStoredPasswordHash();
         if (passwordEncoder.matches(posData.getPassword(), storedHash)) {
             List<WifiData> wifiDataEntities = new ArrayList<>();
@@ -122,7 +123,7 @@ public class PositionService {
             int start = sliceLen * i;
             int end = Math.min(start + sliceLen, dbDataList.size());
             List<WifiData> slicedDataList = dbDataList.subList(start,end);
-            Future<List<ResultDataDTO>> future = taskExecutor.submit(() -> calPos(slicedDataList,data,0.6));
+            Future<List<ResultDataDTO>> future = taskExecutor.submit(() -> calPos(slicedDataList,data,0.2));
             futureResults.add(future);
         }
 
@@ -181,7 +182,6 @@ public class PositionService {
     // calpos 결과값을 기반으로 k개의 이웃값과 비교하여 최적값 반환.
     public ResultDataDTO calcKnn(List<ResultDataDTO> results, int k,String android_id) {
         List<ResultDataDTO> limitedResults = results.stream()
-                .limit(k)
                 .collect(Collectors.toList());
         Map<String, List<ResultDataDTO>> groupedResults = limitedResults.stream()
                 .collect(Collectors.groupingBy(ResultDataDTO::getPosition));
@@ -201,7 +201,7 @@ public class PositionService {
             List<ResultDataDTO> bestResults = groupedResults.get(bestPosition);
             ResultDataDTO bestResult = bestResults.get(0);
 
-            addBestResultToJsonArray(bestResult,2,android_id); // bestResult를 JSON 배열에 추가
+            //addBestResultToJsonArray(bestResult,2,android_id); // bestResult를 JSON 배열에 추가
 
             return bestResult;
         }
