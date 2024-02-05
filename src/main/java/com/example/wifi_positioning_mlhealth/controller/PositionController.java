@@ -1,20 +1,17 @@
 package com.example.wifi_positioning_mlhealth.controller;
 
 //import com.example.wifi_positioning_mlhealth.exception.InvalidPasswordException;
-import com.example.wifi_positioning_mlhealth.entity.ResultDataDTO;
 import com.example.wifi_positioning_mlhealth.exception.InvalidPasswordException;
 
 import com.example.wifi_positioning_mlhealth.service.PositionService;
-import com.example.wifi_positioning_mlhealth.entity.PosDataDTO;
+import com.example.wifi_positioning_mlhealth.dto.PosDataDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
