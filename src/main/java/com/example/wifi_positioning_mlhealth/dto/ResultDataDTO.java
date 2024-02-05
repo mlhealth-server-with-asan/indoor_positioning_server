@@ -1,4 +1,4 @@
-package com.example.wifi_positioning_mlhealth.entity;
+package com.example.wifi_positioning_mlhealth.dto;
 
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
