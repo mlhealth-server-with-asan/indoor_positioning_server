@@ -6,8 +6,8 @@ import com.example.wifi_positioning_mlhealth.dto.ResultDataDTO;
 import com.example.wifi_positioning_mlhealth.entity.BeaconData;
 import com.example.wifi_positioning_mlhealth.dto.BeaconDataDTO;
 import com.example.wifi_positioning_mlhealth.exception.InvalidPasswordException;
-import com.example.wifi_positioning_mlhealth.repository.WifiDataRepository;
-import com.example.wifi_positioning_mlhealth.util.WifiDataUtil;
+import com.example.wifi_positioning_mlhealth.repository.BeaconDataRepository;
+import com.example.wifi_positioning_mlhealth.util.BeaconDataUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -38,10 +38,10 @@ import java.util.stream.Collectors;
 public class PositionService {
 
 
-    private final WifiDataRepository wifiDataRepository;
+    private final BeaconDataRepository beaconDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final ThreadPoolTaskExecutor taskExecutor;
-    private final WifiDataUtil wifiDataUtil;
+    private final BeaconDataUtil beaconDataUtil;
     private JSONArray bestResultsArray = new JSONArray(); // bestResult를 저장할 JSON 배열
 
 
@@ -73,27 +73,26 @@ public class PositionService {
         }
     }
 
-    // 받은 PosData에서 json({macaddress, rssi})을 wifiDataEntity(DB)에 저장.
+    // 받은 PosData에서 json({macaddress, rssi})을 (DB)에 저장.
     public BeaconData addPosData(PosDataDTO posData) throws InvalidPasswordException {
         String storedHash = getStoredPasswordHash();
         if (passwordEncoder.matches(posData.getPassword(), storedHash)) {
-            // Create a new WifiData entity
             BeaconData beaconDataEntity = new BeaconData();
             beaconDataEntity.setPosition(posData.getPosition());
-            String wifiDataJson = convertWifiDataDtoToJson(posData.getWifiData());
-//            System.out.println("wifiDataJson = " + posData.getWifiData());
-            beaconDataEntity.setWifiData(wifiDataJson);
-            return wifiDataRepository.save(beaconDataEntity);
+            String beaconDataJson = converBeaconDataDtoToJson(posData.getBeaconData());
+            beaconDataEntity.setBeaconData(beaconDataJson);
+            return beaconDataRepository.save(beaconDataEntity);
         } else {
             throw new InvalidPasswordException("Invalid password");
         }
     }
 
-    private String convertWifiDataDtoToJson(List wifiDataDTO) {
-        // ObjectMapper를 사용하여 WifiDataDTO를 JSON 문자열로 변환
+    private String converBeaconDataDtoToJson(List beaconDataDTO) {
+        // ObjectMapper를 사용하여 Beacon
+        // DataDTO를 JSON 문자열로 변환
         ObjectMapper mapper = new ObjectMapper();
         try {
-            return mapper.writeValueAsString(wifiDataDTO);
+            return mapper.writeValueAsString(beaconDataDTO);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return null;
@@ -118,21 +117,20 @@ public class PositionService {
         String storedHash = getStoredPasswordHash();
         String android_id = data.getAndroid_id();
 
-        System.out.println("data = " + data.getWifiData());
+        System.out.println("data = " + data.getBeaconData());
 
 
         
         if (passwordEncoder.matches(data.getPassword(), storedHash)) {
 
+//
+//            List<BeaconDataDTO> BeaconDataList = data.getBeaconData();
+//
+//            for (BeaconDataDTO beaconDataDTO : BeaconDataList) {
+//                System.out.println("beaconDataDTO: " + beaconDataDTO.toString());
+//            }
 
-            List<BeaconDataDTO> wifiDataList = data.getWifiData();
-
-            for (BeaconDataDTO beaconDataDTO : wifiDataList) {
-                System.out.println("WifiDataDTO: " + beaconDataDTO.toString());
-            }
-
-
-            List<BeaconData> dbDataList = wifiDataRepository.findAll();
+            List<BeaconData> dbDataList = beaconDataRepository.findAll();
             List<Future<List<ResultDataDTO>>> futureResults = new ArrayList<>();
 
             //클라이언트가 제공한 와이파이 데이터와 데이터베이스에 저장된 와이파이 데이터를 빠르게 비교하기 위해 다중 스레딩 사용.
@@ -166,21 +164,21 @@ public class PositionService {
     // 클라이언트의 와이파이 데이터와 데이터베이스의 와이파이 데이터를 비교하여, 가장 가능성이 높은 위치 정보를 담은 리스트를 반환
     private List<ResultDataDTO> calPos(List<BeaconData> dbDataList, PosDataDTO inputData, double margin) {
         List<ResultDataDTO> resultList = new ArrayList<>();
-//        System.out.println("inputData.getWifiData() = " + inputData.getWifiData());
+
 
         int largestCount = 0;
 
         for (BeaconData dbData : dbDataList) {
-            List<BeaconDataDTO> dbWifiDataList = wifiDataUtil.parseWifiData(dbData.getWifiData());
+            List<BeaconDataDTO> dbBeaconDataList = beaconDataUtil.parseBeaconData(dbData.getBeaconData());
             int count = 0;
             int sum = 0;
 
-            for (BeaconDataDTO dbWifiData : dbWifiDataList) {
-                for (BeaconDataDTO inputWifiData : inputData.getWifiData()) {
-                    if (dbWifiData.getBssid().equals(inputWifiData.getBssid())) {
+            for (BeaconDataDTO dbBeaconData : dbBeaconDataList) {
+                for (BeaconDataDTO inputBeaconData : inputData.getBeaconData()) {
+                    if (dbBeaconData.getBssid().equals(inputBeaconData.getBssid())) {
 
                         count++;
-                        sum += Math.abs(dbWifiData.getRssi() - inputWifiData.getRssi());
+                        sum += Math.abs(dbBeaconData.getRssi() - inputBeaconData.getRssi());
                         break;
                     }
                 }
