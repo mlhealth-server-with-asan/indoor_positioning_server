@@ -19,7 +19,7 @@ public class BeaconDataDTO {
 
     @Override
     public String toString() {
-        return "WifiDataDTO{" +
+        return "BeaconDataDTO{" +
                 ", bssid='" + bssid + '\'' +
                 ", signalStrength=" + rssi +
                 '}';

@@ -23,6 +23,12 @@ public class PosDataDTO {
     @JsonProperty("beacon_data")
     private List<BeaconDataDTO> beaconData;
 
+    @Override
+    public String toString() {
+        return "ResultDataDTO{" +"android_id" + android_id +
+                ", position='" + position + '\'' +
+                '}';
+    }
 
 
 }
