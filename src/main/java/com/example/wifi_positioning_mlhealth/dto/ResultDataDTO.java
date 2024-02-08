@@ -20,7 +20,7 @@ public class ResultDataDTO implements Comparable<ResultDataDTO> {
     private double ratio;
 
 
-    public ResultDataDTO(int id, String position, int count, double avg, double ratio) {
+    public ResultDataDTO(int id ,String position, int count, double avg, double ratio) {
         this.id = id;
         this.position = position;
         this.count = count;

@@ -3,6 +3,7 @@ package com.example.wifi_positioning_mlhealth.service;
 
 import com.example.wifi_positioning_mlhealth.dto.PosDataDTO;
 import com.example.wifi_positioning_mlhealth.dto.ResultDataDTO;
+import com.example.wifi_positioning_mlhealth.dto.StateDTO;
 import com.example.wifi_positioning_mlhealth.entity.BeaconData;
 import com.example.wifi_positioning_mlhealth.dto.BeaconDataDTO;
 import com.example.wifi_positioning_mlhealth.exception.InvalidPasswordException;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import com.example.wifi_positioning_mlhealth.util.PasswordEncoder;
 
 
+import javax.swing.plaf.nimbus.State;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,8 +44,12 @@ public class PositionService {
     private final PasswordEncoder passwordEncoder;
     private final ThreadPoolTaskExecutor taskExecutor;
     private final BeaconDataUtil beaconDataUtil;
-    private JSONArray bestResultsArray = new JSONArray(); // bestResult를 저장할 JSON 배열
+    private JSONArray bestResultsArray = new JSONArray(); // bestResult를 저장할 JSON 배열 싱글톤으로 + 타임스탬프 같이 들어가서 프론트에서 몇초간 측정하고 있는지 판단할 수 있게
 
+    private final HashMap<String,String> stateHashMap; // static으로 class 만들어서 저장하기
+
+
+    private final HashMap<String, String> resultHashMap;
 
     private final MqttPahoMessageHandler mqttMessageHandler;
 
@@ -52,6 +58,7 @@ public class PositionService {
 
 
     public void addBestResultToJsonArray(ResultDataDTO bestResult, int count, String android_id) {
+
         ObjectMapper mapper = new ObjectMapper();
         try {
             String jsonString = mapper.writeValueAsString(bestResult);
@@ -73,12 +80,31 @@ public class PositionService {
         }
     }
 
+    public void insertState(StateDTO stateDTO) {
+        stateHashMap.put(stateDTO.getAndroid_id(),stateDTO.getPosition());
+    }
+
+    public void deleteState(StateDTO stateDTO) {
+        stateHashMap.remove(stateDTO.getAndroid_id());
+    }
+
+    public void receiveData(PosDataDTO posData){
+        String deviceId = posData.getAndroid_id();
+
+        if(stateHashMap.containsKey(deviceId)){
+            addPosData(posData , stateHashMap.get(deviceId));
+        }
+        else{
+            findPosition(posData);
+        }
+    }
+
     // 받은 PosData에서 json({macaddress, rssi})을 (DB)에 저장.
-    public BeaconData addPosData(PosDataDTO posData) throws InvalidPasswordException {
+    public BeaconData addPosData(PosDataDTO posData , String position) throws InvalidPasswordException {
         String storedHash = getStoredPasswordHash();
         if (passwordEncoder.matches(posData.getPassword(), storedHash)) {
             BeaconData beaconDataEntity = new BeaconData();
-            beaconDataEntity.setPosition(posData.getPosition());
+            beaconDataEntity.setPosition(position);
             String beaconDataJson = converBeaconDataDtoToJson(posData.getBeaconData());
             beaconDataEntity.setBeaconData(beaconDataJson);
             return beaconDataRepository.save(beaconDataEntity);
@@ -117,7 +143,7 @@ public class PositionService {
         String storedHash = getStoredPasswordHash();
         String android_id = data.getAndroid_id();
 
-        System.out.println("data = " + data.getBeaconData());
+//        System.out.println("data = " + data.getBeaconData());
 
 
         
@@ -154,7 +180,7 @@ public class PositionService {
                         }
                     }).collect(Collectors.toList());
 
-            return calcKnn(results, 1, android_id);
+            return calcKnn(results, 4, android_id);
         } else {
             throw new InvalidPasswordException("Invalid password");
         }
@@ -203,9 +229,9 @@ public class PositionService {
                 .sorted(Comparator.comparingDouble(ResultDataDTO::getRatio))
                 .collect(Collectors.toList());
 
-        for (ResultDataDTO data : filteredAndSortedResults) {
-            System.out.println(data.getId() + " " + data.getPosition() + " " + data.getCount() + " " + data.getRatio());
-        }
+//        for (ResultDataDTO data : filteredAndSortedResults) {
+//            System.out.println(data.getId() + " " + data.getPosition() + " " + data.getCount() + " " + data.getRatio());
+//        }
 
 
         return resultList.stream()
@@ -250,8 +276,14 @@ public class PositionService {
         if (bestPosition != null) {
             for (ResultDataDTO result : nearestNeighbors) {
                 if (result.getPosition().equals(bestPosition)) {
-                    sendResultToClient(result);
-                    System.out.println("result = " + result);
+
+
+                    resultHashMap.put(android_id,result.getPosition());
+//                    sendResultToClient(resultHashMap);
+                    System.out.println("resultHashMap = " + resultHashMap);
+                    // 디비에 넣어서 저장 별도로 서비스 스프링 쓰레드 돌려서 탑재, 워치 접속데이터를 판단 하는건 쓰레드, 맵은 스태틱으로 변경해서보내주기
+
+                    // 서버랑 별도로 동작하는 체크로직
                     return result; // 해당 위치의 ResultDataDTO 반환
                 }
             }
@@ -261,10 +293,10 @@ public class PositionService {
         return new ResultDataDTO(0, "not found", 0, Double.MAX_VALUE, Double.MAX_VALUE);
     }
 
-    private void sendResultToClient(ResultDataDTO result) {
+    private void sendResultToClient(HashMap<String,String> resultHashMap) {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            String jsonResult = mapper.writeValueAsString(result);
+            String jsonResult = mapper.writeValueAsString(resultHashMap);
             byte[] payload = jsonResult.getBytes();
             Message<byte[]> message = MessageBuilder.withPayload(payload).build();
             mqttMessageHandler.handleMessage(message);
